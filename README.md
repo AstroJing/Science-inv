@@ -1,2 +1,2 @@
 # Science-inv
-# Program for Neutron start caculate
+# Program for Neutron star caculate
