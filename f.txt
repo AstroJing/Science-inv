@@ -1,4 +1,10 @@
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%
+%%
+%%
+%%
+%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %\documentclass[aps,prc,preprint,superscriptaddress]{revtex4-1}                               %one column
 %\documentclass[preprint,tightenlines,eqsecnum,floats,aps,amsmath,amssymb,nofootinbib,prd,showpacs]{revtex4}  %one column
 \documentclass[preprint,tightenlines,floats,aps,amsmath,amssymb,nofootinbib,prd,showpacs]{revtex4}
