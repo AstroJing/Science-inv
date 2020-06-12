@@ -1,42 +1,41 @@
-#define _CRT_SECURE_NO_DEPRECATE
 #include"Gen.h"
 
 #define XM 939.0   // Mass of nutron???
 #define XME 0.511 // Mass of electron in MeV??
 #define XMMU 105.658
-#define Rho0 0.16
 #define H 1239.8522
 static long PtLen = 0, scr = 0;
 double E[80], Pre[80], Den[80];
-char dysm[6] = "\\/-\\", sT[50] = "EoS_lib";
+char sT[50] = "e5585";
 
-int OEos(int n,double Ks, double Js, double J0, double peos[][280])
+int OEos(int n,double Ks, double Js, double J0, double peos[][1000])
 {
-	char outName[80];
+	char outName[40];
 	int i=1;
-	sprintf(outName, ".\\%s\\KsJsJ0%+04.0lf%+04.0lf%+04.0lf.txt", sT, Ks, Js, J0);
+	sprintf(outName, "%s/KsJsJ0%+04.0lf%+04.0lf%+04.0lf.txt", sT, Ks, Js, J0);
 	std::ofstream outf;
 	outf.open(outName);
-	if (!outf) return 0;
+//	if (outf==0) return 0;
 	while (i < n)
 	{
-		outf  << peos[0][i] << "    "<< peos[1][i] << "    " << peos[2][i] << std::endl;
+	//	outf  << peos[0][i] << "    "<< peos[1][i] << "    " << peos[2][i] << std::endl;
+		outf << peos[0][i] << "    " << peos[1][i] <<"     "<<peos[2][i]<< std::endl;
 		i++;
 	}
-
+	// energy--press--rho
 	return 1;
 }
-int paraEoS(double Ksym, double Jsym, double J0, double result[][280])
+int paraEoS(double Ksym, double Jsym, double J0, double result[][1000])
 {
 
 	int  XI = 0,n;
-	double EN1 = 0, XL = 58.7, U, Rho,Erho,Ec=0;
+	double EN1 = 0, U, Rho,Erho,Ec=0;
 	double RhoT,delta;
 	double P,PC=-100;
 	double dpde;
 	double ArrayE[6];
 	double ErhoL;
-	std::pair<double, double>p1 = GetTrho(XL, Ksym, Jsym, -100, 230);
+	std::pair<double, double>p1 = GetTrho(XL, Ksym, Jsym, J0, 230);
 	RhoT = p1.first;
 	delta = p1.second;
 	P = PSolver(RhoT, delta, ArrayE[3], ArrayE[1], ArrayE[4], &ErhoL);  
@@ -52,7 +51,7 @@ int paraEoS(double Ksym, double Jsym, double J0, double result[][280])
 		result[1][n] = 32.0 + log10(Pre[n]*1.6022);
 		result[2][n] = 18.0 + log10(Den[n]*1.6749286);
 	}
-//	std::cout << "RhoT=" << RhoT << "  at  Ksym=" << Ksym << "  Jsym=" << Jsym << "   J0=-100" << J0 << "   delta=" << delta << std::endl;
+//	std::cout<<Ksym<<"   "<<Jsym<<"     "<<J0<<std::endl;
 	U = RhoT / Rho0;
 	while (U<10) //density change from 0.025 times saturation density to 10 times.
 	{
@@ -81,15 +80,15 @@ int paraEoS(double Ksym, double Jsym, double J0, double result[][280])
 
 			}
 		}
-		U = U + 0.01;
+		U = U + 0.08;
 	}
 	return n;
 }
 int IniBPS()
 {
+	double harry[74];
 	//BPS+NV EoS at low density
-	for (int n = 0; n<1; n++)
-	{
+
 		E[0] = 0.0;
 		E[1] = 1.044e4;
 		E[2] = 2.622e4;
@@ -315,90 +314,71 @@ int IniBPS()
 		Den[71] = 1.300e-1;
 		Den[72] = 1.400e-1;
 		Den[73] = 1.500e-1;
-	}
-	//BPS+NV EoS at low density
-	// ...........change units...........
-	for (int n = 1; n <= 73; n++)
+
+for (int n = 1; n <= 73; n++)
 	{
 		Pre[n] = Pre[n] / 1.6022e33;
 		E[n] = E[n] / 1.780222222e12;
-		std::cout << 32+log10(Pre[n]*1.6022) << "    " << 18.0+log10(Den[n]*1.6749286) << '\n';	
+		harry[n] = 18.0 + log10(Den[n] * 1.6749286);
 	}
 	//.............change units.........
 	return 0;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-int main(void)
+int main(int argc,char **argv)
 {
+	int n,myid,numprocs,i;
 	double Ks, Js, J0, inKs0, inKs1, inJs0, inJs1, inJ00, inJ01, dKs, dJs, dJ0;
-	double peos[3][280];
-	long totalpf, pf;
+	double peos[3][1000];
 	IniBPS();
-	/*printf("\nTips:\t-400<Ksym<100\n\t-200<Jsym<800\n\t-400<J0<400\n\nAll in the unit of MeV.\n\n");
-	printf("Set range Ksym, e.g. Ksym=-400:20:100\n(which means Ksym start from -400 to 100 with intervals 20)\n\n\tKsym= ");
-	fflush(stdin);
-	scanf("%lf:%lf:%lf", &inKs0, &dKs, &inKs1);
-	////////////////////////////////////////////
-	inKs0 = ((-400 <= inKs0) && (inKs0 <= 100)) ? inKs0 : -400;
-	inKs1 = ((-400 <= inKs1) && (inKs1 <= 100)) ? inKs1 : 100;
-	dKs = (dKs<1) ? 20 : dKs;
-	printf("Set range Jsym, e.g. Jsym=-200:50:800\n(which means Jsym start from -200 to 800 with intervals 50)\n\n\tJsym= ");
-	fflush(stdin);
-	scanf("%lf:%lf:%lf", &inJs0, &dJs, &inJs1);
-	inJs0 = ((-200 <= inJs0) && (inJs0 <= 800)) ? inJs0 : -200;
-	inJs1 = ((-200 <= inJs1) && (inJs1 <= 800)) ? inJs1 : 800;
-	dJs = (dJs<1) ? 50 : dJs;
-	printf("Set range J0, e.g. J0=-400:50:400\n(which means J0 start from -400 to 400 with intervals 50)\n\n\tJ0= ");
-	fflush(stdin);
-	scanf("%lf:%lf:%lf", &inJ00, &dJ0, &inJ01);
-	inJ00 = ((-400 <= inJ00) && (inJ00 <= 400)) ? inJ00 : -400;
-	inJ01 = ((-400 <= inJ01) && (inJ01 <= 400)) ? inJ01 : 400;
-	dJ0 = (dJ0<1) ? 50 : dJ0;
-	*/
-	inKs0 = 0;
-	dKs = 20;
-	inKs1 = 100;
-	inJs0 = 0;
-	dJs = 20;
-	inJs1 = 100;	
-	inJ00 = 0;
-	dJ0 = 20;
-	inJ01 = 100;
-	///////////////////My dL///////////////////////////
-	/*
-	printf("Set range J0, e.g. J0=-400:50:400\n(which means J0 start from -400 to 400 with intervals 50)\n\n\tJ0= ");
-	scanf("%lf:%lf:%lf", &inL0, &dL, &inL1);
-	inJ00 = ((-400 <= inL0) && (inL0 <= 400)) ? inL0 : -400;
-	inJ01 = ((-400 <= inL1) && (inL1 <= 400)) ? inL1 : 400;
-	dJ0 = (dL<1) ? 50 : dL;
-	*/
-	//////////////////My dK0////////////////////////////
-	///////////////////////////////////////////////////
-	scr = 0;
-	pf = 0;
-	printf("Generating 	` EoS, please wait...      %c", dysm[scr % 6]);
-	totalpf=int((inJ01-inJ00)/dJ0*(inJs1-inJs0)/dJs*(inKs1-inKs0)/dKs);//总任务量
-	_mkdir(sT);
-	for (J0 = inJ00; J0 <= inJ01; J0 = J0 + dJ0)
-	{
-		for (Js = inJs0; Js <= inJs1; Js = Js + dJs)
+	FILE *inf;
+	int j = 0;
+	double cccc;
+	double *Ksym, *Jsym, *Jzero;
+	int namelen;
+	char processor_name[MPI_MAX_PROCESSOR_NAME];
+	MPI::Init(argc,argv);
+	numprocs = MPI::COMM_WORLD.Get_size();
+	myid     = MPI::COMM_WORLD.Get_rank();
+	MPI::Get_processor_name(processor_name,namelen);
+//	std::cout << "Process " << myid << " of " << numprocs << " is on " <<processor_name <<"\n";
+	Ksym = (double*) malloc(3000000 * sizeof(double));
+	Jsym = (double*)malloc(3000000 * sizeof(double));
+	Jzero = (double*)malloc(3000000 * sizeof(double));
+	std::string pathName = "e55.85.txt";
+	//if(myid==0)
+	//{
+		inf=fopen(pathName.c_str(),"r");
+		if (inf==NULL)
 		{
-			for (Ks = inKs0; Ks <= inKs1; Ks = Ks + dKs)
-			{
-				scr++; 
-				printf("\b\b\b\b\b\b%3ld%% %c", pf * 100 / totalpf, dysm[scr % 6]);
-				int n=paraEoS(Ks, Js, J0,peos);
-				if (OEos(n, Ks, Js, J0, peos) == 0)
-				{
-					std::cout << "cannot open/create Eos file";
-					return 0;
-				}
-//std::cout << "  Erho=" << peos[0][i] << "  P=" << peos[1][i] << "  rho=" << peos[2][i] << "  at  Ks=" << Ks << "  Jsym=" << Js << "   J0=" << J0 << std::endl;
-				pf++;
-			}
+			std::cout << '\n' << "Cannot load" << pathName.c_str() << '\n';
+			return 0;
+
+		}
+		while (fscanf(inf, "%lf", Ksym + j) == 1)
+		{
+			fscanf(inf, "%lf", Jsym + j);
+			fscanf(inf, "%lf", Jzero + j);
+//			fscanf(inf, "%lf", &cccc);
+//			fscanf(inf, "%lf", &cccc);
+//			fscanf(inf, "%lf", &cccc);
+//			fscanf(inf, "%lf", &cccc);
+			j++;
+		}
+		std::cout<<"total EoS ="<<j<<std::endl;
+
+	mkdir(sT,S_IRWXU);
+	
+	for (int i = myid; i < j; i+=numprocs)
+	{
+		std::cout<<"\n"<<"myid="<<myid<<"  mumprocs="<<numprocs<<"\n";
+		int n = paraEoS(Ksym[i], Jsym[i], Jzero[i], peos);
+		if (OEos(n, Ksym[i], Jsym[i], Jzero[i], peos) == 0)
+		{
+			std::cout << "cannot open/create Eos file";
+			return 0;
 		}
 	}
-	printf("\b\b\b\b\b\b100%%  \n");
-	system("pause");
-	return 0;
+	MPI::Finalize();
 }
+	
